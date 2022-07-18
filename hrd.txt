@@ -1,0 +1,18 @@
+select * from member_tbl_02 m;
+select * from money_tbl_02 m2;
+
+-- 회원매출 조회 조인과 group by
+select * from member_tbl_02;
+select * from money_tbl_02;
+
+select m.custno, m.custname, m.grade, sum(m2.price)  from member_tbl_02 m join money_tbl_02 m2 on m.custno = m2.custno group by m.custno order by sum(m2.price) desc;
+ 
+
+
+select custno, sum(price) from money_tbl_02 m2 group by custno;
+
+select * from member_tbl_02 m2 join (select custno, sum(price) as asum from money_tbl_02 m2 group by custno order by asum desc) sale on mt.custno= sale.custno;
+
+decode(grade,'A','Vip','B','일반','C','직원')
+
+select mt.custno, custname, decode(grade,'A','Vip','B','일반','C','직원') as agrade, sale.asum from member_tbl_02 m, (select custno, sum(price) as asum from money_tbl_02 m2 group by custno order by asum desc) sale where m.custno= sale.custno;

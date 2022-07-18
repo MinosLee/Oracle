@@ -1,0 +1,238 @@
+create table book_member(
+	mem_idx number(5,0) not null,
+	name varchar2(20) not null,
+	email varchar2(20) unique not null,
+	tel varchar2(20) unique,
+	password varchar2(10),
+	primary key (mem_idx)
+);
+create sequence book_member_seq increment by 1 start with 10001;
+
+insert into book_member values(book_member_seq.nextval, '이하니','honey@naver.com','010-9889-0567','1122');
+insert into book_member values(book_member_seq.nextval, '이세종','jong@daum.net','010-2354-6773','2345');
+insert into book_member values(book_member_seq.nextval, '최행운','lucky@korea.com','010-5467-8792','9876');
+insert into book_member values(book_member_seq.nextval, '나길동','nadong@kkk.net','010-3456-8765','3456');
+insert into book_member values(book_member_seq.nextval, '강감찬','haha@korea.net','010-3987-9087','1234');
+
+
+create table tbl_book(
+	bcode char(5) not null,
+	title varchar2(30) not null,
+	writer varchar2(20),
+	publisher varchar2(20),
+	pdate date,
+	primary key(bcode)
+);
+insert into tbl_book values('A1101','코스모스','칼세이건','사이언스북스','2006-12-01');
+insert into tbl_book values('B1101','해커스토익','이해커','해커스랩','2018-07-10');
+insert into tbl_book values('C1101','푸른사자와니니','이현','창비','2015-06-20');
+insert into tbl_book values('A1102','페스트','알베르트까뮈','민음사','2011-03-01');
+
+
+create table tbl_bookrent(
+	rent_no number(5,0)  not null,
+	mem_idx number(5,0)  not null, 
+	bcode char(5)  not null,
+	rent_date date not null,
+	exp_date date not null,
+	return_date date,
+	delay_days number(3,0),
+	foreign key (mem_idx) references book_member,
+	foreign key (bcode) references tbl_book 
+);
+
+create sequence tbl_bookrent_seq increment by 1 start with 1;
+
+insert into tbl_bookrent(rent_no,mem_idx,bcode,rent_date,exp_date,return_date) values(tbl_bookrent_seq.nextval,'10001','B1101','2021-09-01','2021-09-15','2021-09-14');
+insert into tbl_bookrent(rent_no,mem_idx,bcode,rent_date,exp_date,return_date) values(tbl_bookrent_seq.nextval,'10002','C1101','2021-09-12','2021-09-26','2021-09-29');
+insert into tbl_bookrent(rent_no,mem_idx,bcode,rent_date,exp_date,return_date) values(tbl_bookrent_seq.nextval,'10003','B1101','2021-09-03','2021-09-17','2021-09-17');
+insert into tbl_bookrent(rent_no,mem_idx,bcode,rent_date,exp_date) values(tbl_bookrent_seq.nextval,'10004','C1101','2022-06-30','2022-07-14');
+insert into tbl_bookrent(rent_no,mem_idx,bcode,rent_date,exp_date) values(tbl_bookrent_seq.nextval,'10001','A1101','2022-07-04','2022-07-18');
+insert into tbl_bookrent(rent_no,mem_idx,bcode,rent_date,exp_date,return_date) values(tbl_bookrent_seq.nextval,'10003','A1102','2022-07-06','2022-07-20','2021-07-13');
+
+
+--1)
+insert into tbl_book values('B1102','스트라이크 던지기','박철순','KBO','2020-11-10');
+--2)
+select datediff(day, return_date, exp_date) as delay_day from tbl_bookrent;
+update tbl_bookrent set delay_days= return_date - exp_date where return_date is not null;
+select * from tbl_bookrent tb;
+--3)
+select name, tel from book_member bm join tbl_bookrent tb on bm.mem_idx= tb.mem_idx  where delay_day is not null group by mem_idx;  
+--4)
+select bcode, title from tbl_book where return_date is not null;
+--5)
+select mem_idx, name from book_member bm join tbl_bookrent tb on bm.mem_idx= tb.mem_idx where returndate is null;
+--6)
+select mem_idx, bcode, return_date from tbl_bookrent where delay_day is not null;
+-- 
+
+
+-- sysdate 는 연월일 패턴이 지정되지 않아 그냥 하면 롱값으로 계산됨.
+select mem_idx, bcode, to_date(tochar(sysdate, 'yyyy-mm-dd'))- exp_date from tbl_bookrent tb where return_date is null
+
+-- 현재 연체중인 회원의 이름, 전화번호 검색- 오늘날짜 sysdate기준으로 확인
+select * from book_member bm join tbl_bookrent tb on bm.mem_idx = tb.mem_idx and sysdate > exp_date and return is null;
+
+-- 현재 대출중인 도서의 도서명코드와 도서명 검색
+select tb.BCode, title from tbl_book tb join tbl_bookrent tbr on tb.bcode= tbr.bcode and return_date is null;
+
+-- 현재 도서를 대여한 회원의 idx와 회원이름 검색
+select bm.mem_idx, name from book_member bm join tbl_bookrent tb on bm.mem_idx= tb.mem_idx and return_date is null;
+
+
+대출중인 도서의 회원이름 도서명 반납기한 검색
+
+-- 1
+select bm.name, tb.title, tb2.exp_date from book_member bm, tbl_book tb, tbl_bookrent tbr where bm.mem_idx = tbr.mem_idx and tb.bcode =tbr.bcode and tb2.return_date is null;
+
+-- 2
+select name, title, exp_date from tbl_bookrent tbr join tbl_book tb on tb.code= tbr.bcode join book_member bm on tb.mem_idx= tbr.mem_idx where tbr.return_date is null;
+
+-- 3
+select bm.name, tb2.title, tb2.exp_date from book_member bm join (select * from tbl_bookrent tbr join tbl_book tb on tbr.bcode= tb.bcode) tb2 on bm.mem_idx = tb2.mem_idx and tb2.return_date is null;
+
+-- 회원 idx 10002는 도서 대출이 가능한지 프로시저 작성
+
+declare
+ vcnt number;
+
+begin 
+select count(*) into vcnt
+	from tbl_bookrent tbr 
+	where mem_idx=10002 and return_date is null; -- rcnt가 0일때만 대여가능
+	if (vcnt=0) then
+	 dbms_output.put_line('책 대여 가능합니다');
+	end if;
+end;
+
+	create or replace procedure check_member(
+	 arg_mem in book_member,mem_idx%type,
+	 isOK out varchar2
+	)
+	is
+	 vcnt number;
+	begin 
+	select count(*) into vcnt
+		from tbl_bookrent tbr 
+		where mem_idx=10002 and return_date is null; -- rcnt가 0일때만 대여가능
+		if (vcnt=0) then
+		 dbms_output.put_line('책 대여 가능합니다');
+		 isOK := '가능'
+		else
+		 dbms_output.put_line('책 대여 가능합니다'));
+		 isOK := '불가능'
+		end if;
+	end;
+--프로시저 실행하기
+	declare
+	 vresult varchar2(20);
+	begin
+	 check_member(10003,vresult);
+	 dbms_output.put_line('결과: '|| vresult);
+	end;
+
+
+v_bcode varchar2(100);
+		v_cnt number;
+	begin
+		select bcode into v_bcode
+			from tbl_book tb where title like '페스트';
+		select count(*) from tbl_bookrent tbr where bcode = v_bcode and return_date is null;
+	end;
+
+-- 도서명에 페스트라는 도서를 검색하여 도서대출이 가능한지 프로시저 작성- 프로시저 이름은 check_book
+
+declare
+	v_bcode varchar2(100);
+	v_cnt number;
+begin
+	select bcode into v_bcode
+		from tbl_book tb where title like '페스트';
+	select count(*) from tbl_bookrent tbr where bcode = v_bcode and return_date is null;
+end;
+
+
+
+	declare 
+		vresult varchar2;
+	begin
+		check_book('페스트',vresult);
+	 	dbms_output.put_line('결과:' || vresult);
+	end;
+
+--프로시저 오라클객체
+	create or replace procedure check_member(
+	arg_mem in book_member.mem_idx%TYPE, -- 프로시저 실행할 떄 값을 받을 매개변수
+	isOK out varchar2-- 자바의 리턴값 부분 
+	)
+	is
+		vcnt number;
+	begin
+		select count(*)
+		into vcnt
+		from tbl_bookrent tb
+		where mem_idx = arg_mem and return_date is null;	-- vcnt가 0일때만 가능.
+		if (vcnt = 0) then
+			dbms_output.put_line('책 대여 가능합니다.');
+			isOK := '가능'
+		else
+			dbms_output.put_line('대여중인 책을 반납해야 가능합니다');
+			isOK := '불가능';
+		end if;
+	end;
+
+CREATE OR REPLACE PROCEDURE CHECK_BOOK(
+			arg_book IN tbl_book.title%TYPE,	-- 프로시저 실행할때 값을 받을 매개변수
+			isOK OUT varchar2		-- 자바의 리턴값에 해당하는 부분.
+	)
+	IS 
+	v_bcode varchar2(100);
+ 	v_cnt NUMBER;
+ BEGIN
+ 	SELECT bcode INTO v_bcode		-- v_bcode는 'A1102'
+ 		FROM TBL_BOOK tb WHERE title = arg_book;
+	-- 없는 책이름 입력하면 오류. bcode 값이 검색이 안됩니다.-> Exception 
+ 	SELECT count(*) INTO v_cnt		-- v_cnt 값이 1이면 v_bcode 책은 대출중
+		FROM TBL_BOOKRENT tb2 WHERE BCODE = v_bcode AND return_date IS NULL; 
+	 IF (v_cnt = 1) THEN 
+		DBMS_OUTPUT.put_line('대여 중인 책 입니다.');
+		isOK := 'FALSE' ;
+  	 ELSE 
+		DBMS_OUTPUT.put_line('책 대여 가능합니다.');
+		isOK := 'TRUE' ;
+  	 END IF;
+  
+  	isOK :='no match';
+END;
+
+
+
+----비교
+create or replace procedure check_member2(
+	arg_mem in book_member.mem_idx%TYPE, -- 프로시저 실행할 떄 값을 받을 매개변수
+	isOK out varchar2-- 자바의 리턴값 부분 
+	)
+	is
+		vcnt number;
+		vname varchar2(100)
+	begin
+		-- 입력 매개변수가 없는 회원인가를 확인하는 sql과 exception처리. arg_mem으로 회원테이블에서 name 조회
+		-- 없으면 exception처리
+		select name
+		into vname	-- 변수에 저장
+			from book_member bm where mem_idx= arg_mem;
+		select count(*)
+		from tbl_bookrent tb where mem_idx = arg_mem and return_date is null;	-- vcnt가 0일때만 가능.
+		if (vcnt = 0) then
+			dbms_output.put_line('책 대여 가능합니다.');
+			isOK := '가능'
+		else
+			dbms_output.put_line('대여중인 책을 반납해야 가능합니다');
+			isOK := '불가능';
+		end if;
+		EXCEPTION
+			WHEN no_data_found THEN
+				DBMS_OUTPUT.put_line('회원이 아닙니다')
+  			isOK :='no match';
+		end;
